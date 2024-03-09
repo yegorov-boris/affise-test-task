@@ -1,2 +1,2 @@
 # affise-test-task
-HTTP multiplexor written in Go
+HTTP multiplexer written in Go
