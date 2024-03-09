@@ -1,17 +1,25 @@
 package ratelimiter
 
-import "sync/atomic"
+import (
+	"context"
+	"sync/atomic"
+)
 
 type RateLimiter struct {
 	serverStopped atomic.Bool
 	bucket        chan struct{}
 }
 
-func New(bucketSize uint32) *RateLimiter {
+func New(ctx context.Context, bucketSize uint32) *RateLimiter {
 	rl := new(RateLimiter)
 	if bucketSize != 0 {
 		rl.bucket = make(chan struct{}, bucketSize)
 	}
+
+	go func() {
+		<-ctx.Done()
+		rl.serverStopped.Store(true)
+	}()
 
 	return rl
 }
@@ -27,10 +35,6 @@ func (rl *RateLimiter) Try() bool {
 	default:
 		return false
 	}
-}
-
-func (rl *RateLimiter) Stop() {
-	rl.serverStopped.Store(true)
 }
 
 func (rl *RateLimiter) IsEmpty() bool {

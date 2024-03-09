@@ -1,21 +1,16 @@
 package contracts
 
 import (
+	"context"
 	"net/http"
-	"yegorov-boris/affise-test-task/internal/models"
 )
 
 type (
-	Store interface {
-		Load(uint64) ([]models.Output, error)
-		Store(uint64, []models.Output) error
-		Delete(uint64) error
-	}
-
 	State interface {
-		Start(uint64)
+		Start() (uint64, context.Context)
 		Finish(uint64)
-		Check(uint64)
+		Check(uint64) bool
+		Cancel(uint64) bool
 	}
 
 	Tryer interface {
