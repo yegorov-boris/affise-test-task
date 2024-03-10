@@ -3,6 +3,7 @@ package ratelimiter
 import (
 	"context"
 	"sync/atomic"
+	"yegorov-boris/affise-test-task/pkg/channel"
 )
 
 type RateLimiter struct {
@@ -35,6 +36,10 @@ func (rl *RateLimiter) Try() bool {
 	default:
 		return false
 	}
+}
+
+func (rl *RateLimiter) Free() {
+	channel.TryRead(rl.bucket)
 }
 
 func (rl *RateLimiter) IsEmpty() bool {

@@ -14,6 +14,8 @@ import (
 	"yegorov-boris/affise-test-task/internal/services/cleaner"
 	"yegorov-boris/affise-test-task/internal/services/progress"
 	"yegorov-boris/affise-test-task/internal/services/ratelimiter"
+	"yegorov-boris/affise-test-task/internal/services/scraper"
+	"yegorov-boris/affise-test-task/internal/services/store"
 )
 
 func main() {
@@ -30,9 +32,30 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	rateLimiterPost := ratelimiter.New(ctx, cfg.MaxParallelIn)
 	rateLimiterDefault := ratelimiter.New(ctx, 0)
-	state := new(progress.State)
+	state, err := progress.New(cfg.StorePath)
+	if err != nil {
+		log.Fatalf("failed to create state: %s", err)
+	}
 
-	http.HandleFunc(cfg.HTTPBasePath, handlers.New(rateLimiterPost, logger, handlers.NewPost()))
+	http.HandleFunc(cfg.HTTPBasePath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			errMsg := fmt.Sprintf("Sorry, only %s method is supported for this path.", http.MethodPost)
+			http.Error(w, errMsg, http.StatusMethodNotAllowed)
+			return
+		}
+
+		handlePost := handlers.New(
+			rateLimiterPost,
+			logger,
+			handlers.NewPost(
+				cfg.MaxLinksPerIn,
+				state,
+				scraper.New(logger, cfg.MaxParallelOutPerIn, cfg.HTTPClientTimeout),
+				store.New(logger, cfg.StorePath),
+			),
+		)
+		handlePost(w, r)
+	})
 
 	http.HandleFunc(fmt.Sprintf("%s/{id:[0-9]+}", cfg.HTTPBasePath), func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -44,7 +67,11 @@ func main() {
 			)
 			handleGet(w, r)
 		case http.MethodDelete:
-			handleDelete := handlers.New(rateLimiterDefault, logger, handlers.NewDelete())
+			handleDelete := handlers.New(
+				rateLimiterDefault,
+				logger,
+				handlers.NewDelete(cfg.HTTPBasePath, cfg.StorePath, state),
+			)
 			handleDelete(w, r)
 		default:
 			errMsg := fmt.Sprintf("Sorry, only %s and %s methods are supported for this path.", http.MethodGet, http.MethodDelete)

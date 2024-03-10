@@ -3,6 +3,7 @@ package contracts
 import (
 	"context"
 	"net/http"
+	"yegorov-boris/affise-test-task/internal/models"
 )
 
 type (
@@ -13,8 +14,17 @@ type (
 		Cancel(uint64) bool
 	}
 
-	Tryer interface {
+	RateLimiter interface {
 		Try() bool
+		Free()
+	}
+
+	Scraper interface {
+		Scrap(context.Context, models.Input) []models.Output
+	}
+
+	Store interface {
+		Save(uint64, []models.Output)
 	}
 
 	Handler = func(w http.ResponseWriter, r *http.Request)

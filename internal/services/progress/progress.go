@@ -2,6 +2,11 @@ package progress
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -9,6 +14,30 @@ import (
 type State struct {
 	uid   atomic.Uint64
 	state sync.Map
+}
+
+func New(storePath string) (*State, error) {
+	entries, err := os.ReadDir(storePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list %q: %w", storePath, err)
+	}
+
+	s := new(State)
+
+	if len(entries) == 0 {
+		return s, nil
+	}
+
+	lastFile := entries[len(entries)-1].Name()
+	baseName := strings.TrimSuffix(filepath.Base(lastFile), ".json")
+	lastID, err := strconv.ParseUint(baseName, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid filename in the store: %w", err)
+	}
+
+	s.uid.Store(lastID)
+
+	return s, nil
 }
 
 func (s *State) Start() (uint64, context.Context) {

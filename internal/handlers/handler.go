@@ -10,7 +10,7 @@ import (
 )
 
 func New(
-	rateLimiter contracts.Tryer,
+	rateLimiter contracts.RateLimiter,
 	logger *slog.Logger,
 	inner contracts.HandlerWithErr,
 ) contracts.Handler {

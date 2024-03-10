@@ -5,7 +5,7 @@ import (
 	"yegorov-boris/affise-test-task/internal/contracts"
 )
 
-func NewRateLimiter(limiter contracts.Tryer, inner contracts.Handler) contracts.Handler {
+func NewRateLimiter(limiter contracts.RateLimiter, inner contracts.Handler) contracts.Handler {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !limiter.Try() {
 			http.Error(w, "Sorry, your request can not be currently served. Please, try again a bit later.", http.StatusTooManyRequests)
@@ -13,5 +13,6 @@ func NewRateLimiter(limiter contracts.Tryer, inner contracts.Handler) contracts.
 		}
 
 		inner(w, r)
+		limiter.Free()
 	}
 }
