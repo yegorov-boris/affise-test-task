@@ -4,19 +4,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"yegorov-boris/affise-test-task/internal/contracts"
 )
 
-func NewGet(basePath string, storePath string, state contracts.State) contracts.HandlerWithErr {
+func NewGet(basePath, storePath string, state contracts.State) contracts.HandlerWithErr {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		prefix, _ := url.JoinPath(basePath, "/")
-		idStr := strings.TrimPrefix(r.URL.Path, prefix)
-		id, err := strconv.ParseUint(idStr, 10, 64)
+		id, err := parseID(basePath, r.URL.Path)
 		if err != nil {
 			http.Error(w, "Invalid ID", http.StatusBadRequest)
 
@@ -27,6 +22,8 @@ func NewGet(basePath string, storePath string, state contracts.State) contracts.
 			if _, err := fmt.Fprintf(w, "Your request is in progress. Please, try a bit later."); err != nil {
 				return fmt.Errorf("failed to write response body: %w", err)
 			}
+
+			return nil
 		}
 
 		path := filepath.Join(storePath, fmt.Sprintf("%d.json", id))
