@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,6 +19,8 @@ type State struct {
 }
 
 func New(storePath string) (*State, error) {
+	var maxID uint64
+
 	entries, err := os.ReadDir(storePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list %q: %w", storePath, err)
@@ -25,18 +28,19 @@ func New(storePath string) (*State, error) {
 
 	s := new(State)
 
-	if len(entries) == 0 {
-		return s, nil
+	for _, e := range entries {
+		name := e.Name()
+		if path.Ext(name) != ".json" {
+			continue
+		}
+
+		baseName := strings.TrimSuffix(filepath.Base(name), ".json")
+		if id, err := strconv.ParseUint(baseName, 10, 64); err == nil && id > maxID {
+			maxID = id
+		}
 	}
 
-	lastFile := entries[len(entries)-1].Name()
-	baseName := strings.TrimSuffix(filepath.Base(lastFile), ".json")
-	lastID, err := strconv.ParseUint(baseName, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid filename in the store: %w", err)
-	}
-
-	s.uid.Store(lastID)
+	s.uid.Store(maxID)
 
 	return s, nil
 }
@@ -67,7 +71,7 @@ func (s *State) Cancel(id uint64) bool {
 		return false
 	}
 
-	cancel.(func())()
+	cancel.(context.CancelFunc)()
 
 	return true
 }
