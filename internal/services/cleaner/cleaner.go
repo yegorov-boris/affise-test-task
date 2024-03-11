@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -61,12 +62,13 @@ func (c *Cleaner) do() {
 			continue
 		}
 
-		if err := os.Remove(e.Name()); err != nil {
+		name := filepath.Join(c.storePath, e.Name())
+		if err := os.Remove(name); err != nil {
 			c.logger.Error(fmt.Sprintf("Cleaner failed to remove %q: %s", e.Name(), err))
 		}
 	}
 
-	c.logger.Info("Cleaner finished")
+	c.logger.Info("Cleaner cycle finished")
 }
 
 func (c *Cleaner) Shutdown() {

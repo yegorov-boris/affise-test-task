@@ -83,7 +83,6 @@ func TestNew(t *testing.T) {
 			}
 		}
 
-		// run a test
 		t.Run(tt.name, func(t *testing.T) {
 			state, err := New(tt.storePath)
 			if (err != nil) != tt.wantErr {
