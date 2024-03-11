@@ -14,11 +14,6 @@ type (
 		Cancel(uint64) bool
 	}
 
-	RateLimiter interface {
-		Try() bool
-		Free()
-	}
-
 	Scraper interface {
 		Scrap(context.Context, models.Input) []models.Output
 	}

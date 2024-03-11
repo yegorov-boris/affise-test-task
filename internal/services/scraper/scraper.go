@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 	"yegorov-boris/affise-test-task/internal/models"
-	"yegorov-boris/affise-test-task/pkg/channel"
 )
 
 type Scraper struct {
@@ -46,7 +45,9 @@ func (s *Scraper) Scrap(ctx context.Context, input models.Input) []models.Output
 
 			select {
 			case bucket <- struct{}{}:
-				defer channel.TryRead(bucket)
+				defer func() {
+					<-bucket
+				}()
 
 				output, err := s.get(ctx, link)
 				if err != nil {

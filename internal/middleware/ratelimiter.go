@@ -5,14 +5,14 @@ import (
 	"yegorov-boris/affise-test-task/internal/contracts"
 )
 
-func NewRateLimiter(limiter contracts.RateLimiter, inner contracts.Handler) contracts.Handler {
+func NewRateLimiter(bucket chan struct{}, inner contracts.Handler) contracts.Handler {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !limiter.Try() {
+		select {
+		case bucket <- struct{}{}:
+			inner(w, r)
+			<-bucket
+		default:
 			http.Error(w, "Sorry, your request can not be currently served. Please, try again a bit later.", http.StatusTooManyRequests)
-			return
 		}
-
-		inner(w, r)
-		limiter.Free()
 	}
 }

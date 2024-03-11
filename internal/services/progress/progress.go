@@ -13,6 +13,7 @@ import (
 
 type State struct {
 	uid   atomic.Uint64
+	len   atomic.Int32
 	state sync.Map
 }
 
@@ -44,12 +45,14 @@ func (s *State) Start() (uint64, context.Context) {
 	id := s.uid.Add(1)
 	ctx, cancel := context.WithCancel(context.Background())
 	s.state.Store(id, cancel)
+	s.len.Add(1)
 
 	return id, ctx
 }
 
 func (s *State) Finish(id uint64) {
 	s.state.Delete(id)
+	s.len.Add(-1)
 }
 
 func (s *State) Check(id uint64) bool {
@@ -67,4 +70,8 @@ func (s *State) Cancel(id uint64) bool {
 	cancel.(func())()
 
 	return true
+}
+
+func (s *State) IsEmpty() bool {
+	return s.len.Load() == 0
 }

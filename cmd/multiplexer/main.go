@@ -11,9 +11,9 @@ import (
 	"time"
 	"yegorov-boris/affise-test-task/configs"
 	"yegorov-boris/affise-test-task/internal/handlers"
+	"yegorov-boris/affise-test-task/internal/middleware"
 	"yegorov-boris/affise-test-task/internal/services/cleaner"
 	"yegorov-boris/affise-test-task/internal/services/progress"
-	"yegorov-boris/affise-test-task/internal/services/ratelimiter"
 	"yegorov-boris/affise-test-task/internal/services/scraper"
 	"yegorov-boris/affise-test-task/internal/services/store"
 )
@@ -29,23 +29,16 @@ func main() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	ctx, cancel := context.WithCancel(context.Background())
-	rateLimiterPost := ratelimiter.New(ctx, cfg.MaxParallelIn)
-	rateLimiterDefault := ratelimiter.New(ctx, 0)
 	state, err := progress.New(cfg.StorePath)
 	if err != nil {
 		log.Fatalf("failed to create state: %s", err)
 	}
 
-	http.HandleFunc(cfg.HTTPBasePath, func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			errMsg := fmt.Sprintf("Sorry, only %s method is supported for this path.", http.MethodPost)
-			http.Error(w, errMsg, http.StatusMethodNotAllowed)
-			return
-		}
+	bucket := make(chan struct{}, cfg.MaxParallelIn)
 
-		handlePost := handlers.New(
-			rateLimiterPost,
+	handlePost := middleware.NewRateLimiter(
+		bucket,
+		middleware.NewLogger(
 			logger,
 			handlers.NewPost(
 				cfg.MaxLinksPerIn,
@@ -53,25 +46,31 @@ func main() {
 				scraper.New(logger, cfg.MaxParallelOutPerIn, cfg.HTTPClientTimeout),
 				store.New(logger, cfg.StorePath),
 			),
-		)
+		),
+	)
+	http.HandleFunc(cfg.HTTPBasePath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			errMsg := fmt.Sprintf("Sorry, only %s method is supported for this path.", http.MethodPost)
+			http.Error(w, errMsg, http.StatusMethodNotAllowed)
+			return
+		}
+
 		handlePost(w, r)
 	})
 
+	handleGet := middleware.NewLogger(
+		logger,
+		handlers.NewGet(cfg.HTTPBasePath, cfg.StorePath, state),
+	)
+	handleDelete := middleware.NewLogger(
+		logger,
+		handlers.NewDelete(cfg.HTTPBasePath, cfg.StorePath, state),
+	)
 	http.HandleFunc(fmt.Sprintf("%s/{id:[0-9]+}", cfg.HTTPBasePath), func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			handleGet := handlers.New(
-				rateLimiterDefault,
-				logger,
-				handlers.NewGet(cfg.HTTPBasePath, cfg.StorePath, state),
-			)
 			handleGet(w, r)
 		case http.MethodDelete:
-			handleDelete := handlers.New(
-				rateLimiterDefault,
-				logger,
-				handlers.NewDelete(cfg.HTTPBasePath, cfg.StorePath, state),
-			)
 			handleDelete(w, r)
 		default:
 			errMsg := fmt.Sprintf("Sorry, only %s and %s methods are supported for this path.", http.MethodGet, http.MethodDelete)
@@ -89,18 +88,27 @@ func main() {
 		}
 	}()
 
-	cleaner.Start(ctx, cfg.StoreTimeout, cfg.StorePath, logger)
+	filesCleaner := cleaner.New(cfg.StoreTimeout, cfg.StorePath, logger)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
+
 	logger.Info("graceful shutdown started")
-	cancel()
-	for !rateLimiterPost.IsEmpty() {
+
+	if err := srv.Shutdown(context.Background()); err != nil {
+		logger.Error(err.Error())
+	}
+
+	for i := 0; i < int(cfg.MaxParallelIn); i++ {
+		bucket <- struct{}{}
+	}
+
+	filesCleaner.Shutdown()
+
+	for !state.IsEmpty() {
 		time.Sleep(cfg.GracefulShutdownStep)
 	}
-	if err := srv.Shutdown(context.Background()); err != nil {
-		log.Fatal(err)
-	}
+
 	logger.Info("graceful shutdown finished")
 }

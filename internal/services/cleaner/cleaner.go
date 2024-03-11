@@ -1,7 +1,6 @@
 package cleaner
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -12,10 +11,10 @@ type Cleaner struct {
 	storeTimeout time.Duration
 	storePath    string
 	logger       *slog.Logger
+	done         chan struct{}
 }
 
-func Start(
-	ctx context.Context,
+func New(
 	storeTimeout time.Duration,
 	storePath string,
 	logger *slog.Logger,
@@ -24,13 +23,14 @@ func Start(
 		storeTimeout: storeTimeout,
 		storePath:    storePath,
 		logger:       logger,
+		done:         make(chan struct{}),
 	}
 
 	ticker := time.NewTicker(storeTimeout)
 	go func() {
 		for {
 			select {
-			case <-ctx.Done():
+			case <-c.done:
 				return
 			case <-ticker.C:
 				c.do()
@@ -67,4 +67,8 @@ func (c *Cleaner) do() {
 	}
 
 	c.logger.Info("Cleaner finished")
+}
+
+func (c *Cleaner) Shutdown() {
+	c.done <- struct{}{}
 }
