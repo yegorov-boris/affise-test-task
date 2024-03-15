@@ -3,29 +3,27 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"sync"
-	"time"
+	"yegorov-boris/affise-test-task/internal/contracts"
 	"yegorov-boris/affise-test-task/internal/models"
 )
 
 type Scraper struct {
 	logger              *slog.Logger
 	maxParallelOutPerIn uint32
-	httpClientTimeout   time.Duration
+	httpClient          contracts.HTTPClient
 }
 
 func New(
 	logger *slog.Logger,
 	maxParallelOutPerIn uint32,
-	httpClientTimeout time.Duration,
+	httpClient contracts.HTTPClient,
 ) *Scraper {
 	return &Scraper{
 		logger:              logger,
 		maxParallelOutPerIn: maxParallelOutPerIn,
-		httpClientTimeout:   httpClientTimeout,
+		httpClient:          httpClient,
 	}
 }
 
@@ -35,7 +33,7 @@ func (s *Scraper) Scrap(ctx context.Context, input models.Input) []models.Output
 	linksCount := len(input)
 	results := make([]models.Output, linksCount)
 	bucket := make(chan struct{}, s.maxParallelOutPerIn)
-	ctx, cancel := context.WithTimeout(ctx, s.httpClientTimeout)
+	c, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	wg.Add(linksCount)
@@ -49,7 +47,7 @@ func (s *Scraper) Scrap(ctx context.Context, input models.Input) []models.Output
 					<-bucket
 				}()
 
-				output, err := s.get(ctx, link)
+				output, err := s.httpClient.Get(c, link)
 				if err != nil {
 					cancel()
 					s.logger.Error(fmt.Sprintf("failed to get response for link %q: %s", link, err))
@@ -64,31 +62,11 @@ func (s *Scraper) Scrap(ctx context.Context, input models.Input) []models.Output
 	}
 	wg.Wait()
 
+	for _, result := range results {
+		if result.StatusCode == 0 {
+			return nil
+		}
+	}
+
 	return results
-}
-
-func (s *Scraper) get(ctx context.Context, link string) (models.Output, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, link, nil)
-	if err != nil {
-		return models.Output{}, fmt.Errorf("failed to build http request: %w", err)
-	}
-
-	client := http.DefaultClient
-	res, err := client.Do(req)
-	if err != nil {
-		return models.Output{}, fmt.Errorf("failed to get response: %w", err)
-	}
-
-	defer res.Body.Close()
-
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		return models.Output{}, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	return models.Output{
-		URL:        link,
-		StatusCode: res.StatusCode,
-		Body:       b,
-	}, nil
 }

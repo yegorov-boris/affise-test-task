@@ -22,6 +22,10 @@ type (
 		Save(uint64, []models.Output)
 	}
 
+	HTTPClient interface {
+		Get(context.Context, string) (models.Output, error)
+	}
+
 	Handler = func(w http.ResponseWriter, r *http.Request)
 
 	HandlerWithErr = func(w http.ResponseWriter, r *http.Request) error

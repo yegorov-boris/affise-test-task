@@ -16,6 +16,7 @@ import (
 	"yegorov-boris/affise-test-task/internal/services/progress"
 	"yegorov-boris/affise-test-task/internal/services/scraper"
 	"yegorov-boris/affise-test-task/internal/services/store"
+	"yegorov-boris/affise-test-task/pkg/httpclient"
 )
 
 func main() {
@@ -36,6 +37,7 @@ func main() {
 
 	bucket := make(chan struct{}, cfg.MaxParallelIn)
 
+	httpClient := httpclient.New(cfg.HTTPClientTimeout)
 	handlePost := middleware.NewRateLimiter(
 		bucket,
 		middleware.NewLogger(
@@ -43,7 +45,7 @@ func main() {
 			handlers.NewPost(
 				cfg.MaxLinksPerIn,
 				state,
-				scraper.New(logger, cfg.MaxParallelOutPerIn, cfg.HTTPClientTimeout),
+				scraper.New(logger, cfg.MaxParallelOutPerIn, httpClient),
 				store.New(logger, cfg.StorePath),
 			),
 		),
