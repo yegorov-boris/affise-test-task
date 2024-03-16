@@ -40,7 +40,7 @@ func Test_Multiplexer(t *testing.T) {
 	}()
 
 	multiplexerAPI, err := url.JoinPath(
-		fmt.Sprintf("%s:%d", cfg.MultiplexerHost, cfg.MultiplexerPort),
+		fmt.Sprintf("http://%s:%d", cfg.MultiplexerHost, cfg.MultiplexerPort),
 		cfg.MultiplexerBasePath,
 	)
 	if err != nil {
@@ -51,7 +51,7 @@ func Test_Multiplexer(t *testing.T) {
 	}{
 		{
 			links: []string{
-				fmt.Sprintf("%s:%d/example", cfg.HTTPHost, cfg.HTTPPort),
+				fmt.Sprintf("http://%s:%d/example", cfg.HTTPHost, cfg.HTTPPort),
 			},
 		},
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"yegorov-boris/affise-test-task/internal/contracts"
 	"yegorov-boris/affise-test-task/internal/models"
@@ -16,19 +17,16 @@ func NewPost(
 	store contracts.Store,
 ) contracts.HandlerWithErr {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		var (
-			data  []byte
-			links models.Input
-		)
+		var links models.Input
 
-		if _, err := r.Body.Read(data); err != nil {
-			_ = r.Body.Close()
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
 			http.Error(w, "Failed to read request body.", http.StatusInternalServerError)
 
 			return fmt.Errorf("failed to read request body: %w", err)
 		}
 
-		_ = r.Body.Close()
+		defer r.Body.Close()
 
 		if err := json.Unmarshal(data, &links); err != nil {
 			http.Error(w, "Request body should be a JSON encoded array of strings.", http.StatusBadRequest)
