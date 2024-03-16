@@ -16,10 +16,15 @@ import (
 	"yegorov-boris/affise-test-task/internal/services/progress"
 	"yegorov-boris/affise-test-task/internal/services/scraper"
 	"yegorov-boris/affise-test-task/internal/services/store"
+	"yegorov-boris/affise-test-task/pkg/dotenv"
 	"yegorov-boris/affise-test-task/pkg/httpclient"
 )
 
 func main() {
+	// Config
+	if err := dotenv.Load(".env"); err != nil {
+		log.Fatalf("failed to parse .env file: %s", err)
+	}
 	cfg := new(configs.Config)
 	if err := cfg.Parse(); err != nil {
 		log.Fatalf("failed to parse config: %s", err)
@@ -28,16 +33,22 @@ func main() {
 		log.Fatalf("failed to validate config: %s", err)
 	}
 
+	// Logger
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	// State
 	state, err := progress.New(cfg.StorePath)
 	if err != nil {
 		log.Fatalf("failed to create state: %s", err)
 	}
 
+	// Rate limiter
 	bucket := make(chan struct{}, cfg.MaxParallelIn)
 
+	// HTTP Client
 	httpClient := httpclient.New(cfg.HTTPClientTimeout)
+
+	// HTTP Server
 	handlePost := middleware.NewRateLimiter(
 		bucket,
 		middleware.NewLogger(
@@ -90,8 +101,10 @@ func main() {
 		}
 	}()
 
+	// GC old files
 	filesCleaner := cleaner.New(cfg.StoreTimeout, cfg.StorePath, logger)
 
+	// Graceful shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
