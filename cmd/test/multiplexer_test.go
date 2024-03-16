@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 	"yegorov-boris/affise-test-task/configs"
@@ -26,8 +28,27 @@ func Test_Multiplexer(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	http.HandleFunc("/example", func(w http.ResponseWriter, r *http.Request) {
-		if _, err := fmt.Fprintf(w, "example"); err != nil {
+	randomBytes := func() []byte {
+		n := rand.Uint32N(255)
+		result := make([]byte, n)
+		for i := 0; i < int(n); i++ {
+			result[i] = uint8(rand.Uint32N(255))
+		}
+
+		return result
+	}
+	bodies := map[string][]byte{
+		"1": randomBytes(),
+		"2": randomBytes(),
+	}
+	http.HandleFunc("/example/", func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		lastPart := parts[len(parts)-1]
+		body, ok := bodies[lastPart]
+		if !ok {
+			log.Fatal("fake body not found")
+		}
+		if _, err := w.Write(body); err != nil {
 			log.Fatal(err)
 		}
 	})
@@ -51,7 +72,7 @@ func Test_Multiplexer(t *testing.T) {
 	}
 	testAPI := fmt.Sprintf("http://%s:%d", cfg.HTTPHost, cfg.HTTPPort)
 	testLink := func(path string) string {
-		return fmt.Sprintf("%s/%s", testAPI, path)
+		return fmt.Sprintf("%s/example/%s", testAPI, path)
 	}
 	tests := []struct {
 		name  string
@@ -61,13 +82,19 @@ func Test_Multiplexer(t *testing.T) {
 		{
 			name: "should POST a list of links and then GET outputs",
 			links: []string{
-				testLink("example"),
+				testLink("1"),
+				testLink("2"),
 			},
 			want: []models.Output{
 				{
-					URL:        testLink("example"),
+					URL:        testLink("1"),
 					StatusCode: http.StatusOK,
-					Body:       []byte("example"),
+					Body:       bodies["1"],
+				},
+				{
+					URL:        testLink("2"),
+					StatusCode: http.StatusOK,
+					Body:       bodies["2"],
 				},
 			},
 		},
@@ -110,7 +137,7 @@ func Test_Multiplexer(t *testing.T) {
 				t.Error(err)
 			}
 			if !reflect.DeepEqual(output, tt.want) {
-				t.Errorf("Expected %v, got %v", tt.want, output)
+				t.Errorf("Expected %v\nGot %v", tt.want, output)
 			}
 		})
 	}
