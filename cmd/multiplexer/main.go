@@ -79,7 +79,7 @@ func main() {
 		logger,
 		handlers.NewDelete(cfg.HTTPBasePath, cfg.StorePath, state),
 	)
-	http.HandleFunc(fmt.Sprintf("%s/{id:[0-9]+}", cfg.HTTPBasePath), func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s/", cfg.HTTPBasePath), func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			handleGet(w, r)

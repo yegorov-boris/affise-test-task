@@ -69,6 +69,10 @@ func (c *Config) Parse() error {
 }
 
 func (c *Config) Validate() error {
+	if len(c.HTTPBasePath) != 0 && c.HTTPBasePath[len(c.HTTPBasePath)-1] == byte('/') {
+		return fmt.Errorf("%q parameter must not end with \"/\"", "HTTPBasePath")
+	}
+
 	if len(c.StorePath) == 0 {
 		return fmt.Errorf("%q parameter must not be empty", "StorePath")
 	}
