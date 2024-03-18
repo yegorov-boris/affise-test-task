@@ -3,6 +3,7 @@ package progress
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -20,6 +21,10 @@ type State struct {
 
 func New(storePath string) (*State, error) {
 	var maxID uint64
+
+	if err := os.MkdirAll(storePath, fs.ModeDir); err != nil {
+		return nil, fmt.Errorf("failed to create %q: %w", storePath, err)
+	}
 
 	entries, err := os.ReadDir(storePath)
 	if err != nil {

@@ -20,7 +20,21 @@ type Config struct {
 	MaxParallelOutPerIn  uint32
 }
 
-func (c *Config) Parse() error {
+func New() (*Config, error) {
+	cfg := new(Config)
+
+	if err := cfg.parse(); err != nil {
+		return nil, fmt.Errorf("failed to parse config: %s", err)
+	}
+
+	if err := cfg.validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate config: %s", err)
+	}
+
+	return cfg, nil
+}
+
+func (c *Config) parse() error {
 	var err error
 
 	c.StorePath = os.Getenv("STORE_PATH")
@@ -68,7 +82,7 @@ func (c *Config) Parse() error {
 	return nil
 }
 
-func (c *Config) Validate() error {
+func (c *Config) validate() error {
 	if len(c.HTTPBasePath) != 0 && c.HTTPBasePath[len(c.HTTPBasePath)-1] == byte('/') {
 		return fmt.Errorf("%q parameter must not end with \"/\"", "HTTPBasePath")
 	}

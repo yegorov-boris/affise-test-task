@@ -42,6 +42,7 @@ func Test_Multiplexer(t *testing.T) {
 	bodies := map[string][]byte{
 		"1": randomBytes(),
 		"2": randomBytes(),
+		"3": nil,
 	}
 	http.HandleFunc("/example/", func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
@@ -49,6 +50,9 @@ func Test_Multiplexer(t *testing.T) {
 		body, ok := bodies[lastPart]
 		if !ok {
 			log.Fatal("fake body not found")
+		}
+		if lastPart == "3" {
+			time.Sleep(100 * time.Millisecond)
 		}
 		if _, err := w.Write(body); err != nil {
 			log.Fatal(err)
@@ -88,6 +92,7 @@ func Test_Multiplexer(t *testing.T) {
 					testLink("2"),
 				},
 			},
+			rateLimit: 100,
 			want: []wantResponse{
 				{
 					postStatusCode: http.StatusAccepted,
@@ -106,15 +111,28 @@ func Test_Multiplexer(t *testing.T) {
 				},
 			},
 		},
-		//{
-		//	name: "should limit POST requests rate",
-		//	links: [][]string{
-		//		{},
-		//		{},
-		//	},
-		//	rateLimit: 1,
-		//	want:
-		//},
+		{
+			name: "should limit POST requests rate",
+			links: [][]string{
+				{
+					testLink("3"),
+				},
+				{
+					testLink("1"),
+				},
+			},
+			rateLimit: 1,
+			want: []wantResponse{
+				{
+					postStatusCode: http.StatusAccepted,
+					getBody:        nil,
+				},
+				{
+					postStatusCode: http.StatusTooManyRequests,
+					getBody:        nil,
+				},
+			},
+		},
 		//{
 		//	name: "should respond with error when one of outgoing requests is stopped by timeout",
 		//},
@@ -131,23 +149,33 @@ func Test_Multiplexer(t *testing.T) {
 				wg sync.WaitGroup
 			)
 
-			mainConfig := new(configs.Config)
-			if err := mainConfig.Parse(); err != nil {
-				log.Fatal(err)
+			mainConfig, err := configs.New()
+			if err != nil {
+				t.Error(err)
+				return
 			}
+			mainConfig.MaxParallelIn = tt.rateLimit
 			mainConfig.StorePath = "../../store"
-			if err := mainConfig.Validate(); err != nil {
-				log.Fatal(err)
+			shutdown, err := multiplexer.Run(mainConfig)
+			if err != nil {
+				t.Error(err)
+				return
 			}
-			go multiplexer.Run(mainConfig)
-			time.Sleep(100 * time.Millisecond)
+			//time.Sleep(100 * time.Millisecond)
+
+			defer func() {
+				if err := shutdown(); err != nil {
+					t.Errorf("graceful shutdown failed: %s", err)
+				}
+			}()
 
 			multiplexerAPI, err := url.JoinPath(
 				fmt.Sprintf("http://%s:%d", cfg.MultiplexerHost, mainConfig.HTTPPort),
 				mainConfig.HTTPBasePath,
 			)
 			if err != nil {
-				log.Fatal(err)
+				t.Error(err)
+				return
 			}
 
 			n := len(tt.links)
@@ -194,21 +222,27 @@ func Test_Multiplexer(t *testing.T) {
 						errs[i] = err
 						return
 					}
-					if err := json.Unmarshal(body, &output[i]); err != nil {
-						errs[i] = err
+					if string(body) == "Your request is in progress. Please, try a bit later." {
+						output[i] = nil
 						return
 					}
+					if err := json.Unmarshal(body, &output[i]); err != nil {
+						errs[i] = err
+					}
 				}(i, input)
+				time.Sleep(10 * time.Millisecond)
 			}
 			wg.Wait()
 			for _, err := range errs {
 				if err != nil {
 					t.Error(err)
+					return
 				}
 			}
 			for i, w := range tt.want {
 				if !reflect.DeepEqual(output[i], w.getBody) {
-					t.Errorf("Expected %v\nGot %v", tt.want, output)
+					t.Errorf("Expected %v\nGot %v", w.getBody, output[i])
+					return
 				}
 			}
 		})

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
 	"time"
 	"yegorov-boris/affise-test-task/configs"
 	"yegorov-boris/affise-test-task/internal/handlers"
@@ -19,14 +18,14 @@ import (
 	"yegorov-boris/affise-test-task/pkg/httpclient"
 )
 
-func Run(cfg *configs.Config) {
+func Run(cfg *configs.Config) (func() error, error) {
 	// Logger
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// State
 	state, err := progress.New(cfg.StorePath)
 	if err != nil {
-		log.Fatalf("failed to create state: %s", err)
+		return nil, fmt.Errorf("failed to create state: %w", err)
 	}
 
 	// Rate limiter
@@ -36,6 +35,8 @@ func Run(cfg *configs.Config) {
 	httpClient := httpclient.New(cfg.HTTPClientTimeout)
 
 	// HTTP Server
+	mux := http.NewServeMux()
+
 	handlePost := middleware.NewRateLimiter(
 		bucket,
 		middleware.NewLogger(
@@ -48,7 +49,8 @@ func Run(cfg *configs.Config) {
 			),
 		),
 	)
-	http.HandleFunc(cfg.HTTPBasePath, func(w http.ResponseWriter, r *http.Request) {
+
+	mux.HandleFunc(cfg.HTTPBasePath, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			errMsg := fmt.Sprintf("Sorry, only %s method is supported for this path.", http.MethodPost)
 			http.Error(w, errMsg, http.StatusMethodNotAllowed)
@@ -66,7 +68,7 @@ func Run(cfg *configs.Config) {
 		logger,
 		handlers.NewDelete(cfg.HTTPBasePath, cfg.StorePath, state),
 	)
-	http.HandleFunc(fmt.Sprintf("%s/", cfg.HTTPBasePath), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("%s/", cfg.HTTPBasePath), func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			handleGet(w, r)
@@ -78,9 +80,9 @@ func Run(cfg *configs.Config) {
 			return
 		}
 	})
-
 	srv := http.Server{
-		Addr: fmt.Sprintf(":%d", cfg.HTTPPort),
+		Addr:    fmt.Sprintf(":%d", cfg.HTTPPort),
+		Handler: mux,
 	}
 	go func() {
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -91,26 +93,25 @@ func Run(cfg *configs.Config) {
 	// GC old files
 	filesCleaner := cleaner.New(cfg.StoreTimeout, cfg.StorePath, logger)
 
-	// Graceful shutdown
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
+	return func() error {
+		logger.Info("graceful shutdown started")
 
-	logger.Info("graceful shutdown started")
+		if err := srv.Shutdown(context.Background()); err != nil {
+			return fmt.Errorf("failed to shutdown HTTP server: %w", err)
+		}
 
-	if err := srv.Shutdown(context.Background()); err != nil {
-		logger.Error(err.Error())
-	}
+		for i := 0; i < int(cfg.MaxParallelIn); i++ {
+			bucket <- struct{}{}
+		}
 
-	for i := 0; i < int(cfg.MaxParallelIn); i++ {
-		bucket <- struct{}{}
-	}
+		filesCleaner.Shutdown()
 
-	filesCleaner.Shutdown()
+		for !state.IsEmpty() {
+			time.Sleep(cfg.GracefulShutdownStep)
+		}
 
-	for !state.IsEmpty() {
-		time.Sleep(cfg.GracefulShutdownStep)
-	}
+		logger.Info("graceful shutdown finished")
 
-	logger.Info("graceful shutdown finished")
+		return nil
+	}, nil
 }
