@@ -6,11 +6,9 @@ import (
 )
 
 type ConfigTest struct {
-	HTTPHost            string
-	HTTPPort            uint32
-	MultiplexerHost     string
-	MultiplexerPort     uint32
-	MultiplexerBasePath string
+	HTTPHost        string
+	HTTPPort        uint32
+	MultiplexerHost string
 }
 
 func (c *ConfigTest) Parse() error {
@@ -24,13 +22,6 @@ func (c *ConfigTest) Parse() error {
 	}
 
 	c.MultiplexerHost = os.Getenv("MULTIPLEXER_HOST")
-
-	c.MultiplexerPort, err = parseUint32("HTTP_PORT")
-	if err != nil {
-		return fmt.Errorf("failed to parse %q env var: %w", "HTTP_PORT", err)
-	}
-
-	c.MultiplexerBasePath = os.Getenv("HTTP_BASE_PATH")
 
 	return nil
 }
