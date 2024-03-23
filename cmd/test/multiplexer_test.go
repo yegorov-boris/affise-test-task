@@ -161,7 +161,6 @@ func Test_Multiplexer(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			//time.Sleep(100 * time.Millisecond)
 
 			defer func() {
 				if err := shutdown(); err != nil {
@@ -203,6 +202,9 @@ func Test_Multiplexer(t *testing.T) {
 					body, err := io.ReadAll(res.Body)
 					if err != nil {
 						errs[i] = err
+						return
+					}
+					if res.StatusCode != http.StatusAccepted {
 						return
 					}
 					id, err := strconv.ParseUint(string(body), 10, 64)

@@ -16,8 +16,17 @@ func NewPost(
 	scraper contracts.Scraper,
 	store contracts.Store,
 ) contracts.HandlerWithErr {
-	return func(w http.ResponseWriter, r *http.Request) error {
+	return func(w http.ResponseWriter, r *http.Request) (e error) {
 		var links models.Input
+
+		callback, hasCallback := r.Context().Value("callback").(func())
+		if hasCallback {
+			defer func() {
+				if e != nil {
+					callback()
+				}
+			}()
+		}
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -59,6 +68,9 @@ func NewPost(
 		go func() {
 			store.Save(id, scraper.Scrap(ctx, links))
 			state.Finish(id)
+			if hasCallback {
+				callback()
+			}
 		}()
 
 		return nil
