@@ -88,6 +88,7 @@ func Test_Multiplexer(t *testing.T) {
 		links             [][]string
 		rateLimit         uint32
 		httpClientTimeout time.Duration
+		cancel            bool
 		want              []wantResponse
 	}{
 		{
@@ -166,9 +167,25 @@ func Test_Multiplexer(t *testing.T) {
 				},
 			},
 		},
-		//{
-		//	name: "should stop outgoing requests when cancelled by a client",
-		//},
+		{
+			name: "should stop outgoing requests when cancelled by a client",
+			links: [][]string{
+				{
+					testLink("1"),
+					testLink("3"),
+				},
+			},
+			rateLimit:         100,
+			httpClientTimeout: 100 * time.Millisecond,
+			cancel:            true,
+			want: []wantResponse{
+				{
+					postStatusCode: http.StatusAccepted,
+					getStatusCode:  http.StatusOK,
+					getBody:        nil,
+				},
+			},
+		},
 		//{
 		//	name: "should shutdown gracefully",
 		//},
@@ -242,6 +259,23 @@ func Test_Multiplexer(t *testing.T) {
 					if err != nil {
 						errs[i] = fmt.Errorf("Invalid response body: %s", err)
 						return
+					}
+
+					if tt.cancel {
+						req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/%d", multiplexerAPI, id), nil)
+						if err != nil {
+							errs[i] = err
+							return
+						}
+						res, err := http.DefaultClient.Do(req)
+						if err != nil {
+							errs[i] = fmt.Errorf("Failed to cancel: %s", err)
+							return
+						}
+						if res.StatusCode != http.StatusNoContent {
+							errs[i] = fmt.Errorf("Expected status %d, got %d", http.StatusNoContent, res.StatusCode)
+							return
+						}
 					}
 
 					time.Sleep(2 * tt.httpClientTimeout)
