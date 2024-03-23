@@ -15,11 +15,11 @@ type (
 	}
 
 	Scraper interface {
-		Scrap(context.Context, models.Input) []models.Output
+		Scrap(context.Context, models.Input) ([]models.Output, string)
 	}
 
 	Store interface {
-		Save(uint64, []models.Output)
+		Save(uint64, []models.Output, string)
 	}
 
 	HTTPClient interface {

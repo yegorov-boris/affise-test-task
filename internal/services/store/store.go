@@ -21,15 +21,24 @@ func New(logger *slog.Logger, path string) *Store {
 	}
 }
 
-func (s *Store) Save(id uint64, results []models.Output) {
-	if len(results) == 0 {
+func (s *Store) Save(id uint64, body []models.Output, bodyStr string) {
+	if len(body) == 0 && len(bodyStr) == 0 {
 		return
 	}
 
-	b, err := json.Marshal(results)
-	if err != nil {
-		s.logger.Error(fmt.Sprintf("failed to JSON encode results: %s", err))
-		return
+	var (
+		b   []byte
+		err error
+	)
+
+	if len(body) == 0 {
+		b = []byte(bodyStr)
+	} else {
+		b, err = json.Marshal(body)
+		if err != nil {
+			s.logger.Error(fmt.Sprintf("failed to JSON encode results: %s", err))
+			return
+		}
 	}
 
 	name := filepath.Join(s.path, fmt.Sprintf("%d.json", id))

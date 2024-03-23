@@ -27,7 +27,7 @@ func New(
 	}
 }
 
-func (s *Scraper) Scrap(ctx context.Context, input models.Input) []models.Output {
+func (s *Scraper) Scrap(ctx context.Context, input models.Input) ([]models.Output, string) {
 	var wg sync.WaitGroup
 
 	linksCount := len(input)
@@ -36,6 +36,7 @@ func (s *Scraper) Scrap(ctx context.Context, input models.Input) []models.Output
 	c, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	errMsgs := make([]string, linksCount)
 	wg.Add(linksCount)
 	for i, link := range input {
 		go func(i int, link string) {
@@ -51,22 +52,31 @@ func (s *Scraper) Scrap(ctx context.Context, input models.Input) []models.Output
 				if err != nil {
 					cancel()
 					s.logger.Error(fmt.Sprintf("failed to get response for link %q: %s", link, err))
+					errMsgs[i] = fmt.Sprintf("Request to %s failed.", link)
 
 					return
 				}
 
 				results[i] = output
 			case <-ctx.Done():
+				switch ctx.Err() {
+				case context.Canceled:
+					errMsgs[i] = "Requests canceled by client."
+				case context.DeadlineExceeded:
+					errMsgs[i] = "Request to %s timeout exceeded."
+				default:
+					errMsgs[i] = fmt.Sprintf("Request to %s failed.", link)
+				}
 			}
 		}(i, link)
 	}
 	wg.Wait()
 
-	for _, result := range results {
-		if result.StatusCode == 0 {
-			return nil
+	for _, msg := range errMsgs {
+		if msg != "" {
+			return nil, msg
 		}
 	}
 
-	return results
+	return results, ""
 }

@@ -42,7 +42,8 @@ func Test_Multiplexer(t *testing.T) {
 	bodies := map[string][]byte{
 		"1": randomBytes(),
 		"2": randomBytes(),
-		"3": nil,
+		"3": {},
+		"4": nil,
 	}
 	http.HandleFunc("/example/", func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
@@ -52,7 +53,10 @@ func Test_Multiplexer(t *testing.T) {
 			log.Fatal("fake body not found")
 		}
 		if lastPart == "3" {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
+		}
+		if lastPart == "4" {
+			time.Sleep(200 * time.Millisecond)
 		}
 		if _, err := w.Write(body); err != nil {
 			log.Fatal(err)
@@ -76,13 +80,15 @@ func Test_Multiplexer(t *testing.T) {
 
 	type wantResponse struct {
 		postStatusCode int
+		getStatusCode  int
 		getBody        []models.Output
 	}
 	tests := []struct {
-		name      string
-		links     [][]string
-		rateLimit uint32
-		want      []wantResponse
+		name              string
+		links             [][]string
+		rateLimit         uint32
+		httpClientTimeout time.Duration
+		want              []wantResponse
 	}{
 		{
 			name: "should POST a list of links and then GET outputs",
@@ -92,10 +98,12 @@ func Test_Multiplexer(t *testing.T) {
 					testLink("2"),
 				},
 			},
-			rateLimit: 100,
+			rateLimit:         100,
+			httpClientTimeout: 100 * time.Millisecond,
 			want: []wantResponse{
 				{
 					postStatusCode: http.StatusAccepted,
+					getStatusCode:  http.StatusOK,
 					getBody: []models.Output{
 						{
 							URL:        testLink("1"),
@@ -121,21 +129,43 @@ func Test_Multiplexer(t *testing.T) {
 					testLink("1"),
 				},
 			},
-			rateLimit: 1,
+			rateLimit:         1,
+			httpClientTimeout: 100 * time.Millisecond,
 			want: []wantResponse{
 				{
 					postStatusCode: http.StatusAccepted,
-					getBody:        nil,
+					getStatusCode:  http.StatusOK,
+					getBody: []models.Output{
+						{
+							URL:        testLink("3"),
+							StatusCode: http.StatusOK,
+							Body:       bodies["3"],
+						},
+					},
 				},
 				{
 					postStatusCode: http.StatusTooManyRequests,
+				},
+			},
+		},
+		{
+			name: "should respond with error when one of outgoing requests is stopped by timeout",
+			links: [][]string{
+				{
+					testLink("1"),
+					testLink("4"),
+				},
+			},
+			rateLimit:         100,
+			httpClientTimeout: 100 * time.Millisecond,
+			want: []wantResponse{
+				{
+					postStatusCode: http.StatusAccepted,
+					getStatusCode:  http.StatusOK,
 					getBody:        nil,
 				},
 			},
 		},
-		//{
-		//	name: "should respond with error when one of outgoing requests is stopped by timeout",
-		//},
 		//{
 		//	name: "should stop outgoing requests when cancelled by a client",
 		//},
@@ -155,6 +185,7 @@ func Test_Multiplexer(t *testing.T) {
 				return
 			}
 			mainConfig.MaxParallelIn = tt.rateLimit
+			mainConfig.HTTPClientTimeout = tt.httpClientTimeout
 			mainConfig.StorePath = "../../store"
 			shutdown, err := multiplexer.Run(mainConfig)
 			if err != nil {
@@ -213,7 +244,7 @@ func Test_Multiplexer(t *testing.T) {
 						return
 					}
 
-					time.Sleep(50 * time.Millisecond)
+					time.Sleep(2 * tt.httpClientTimeout)
 					res, err = http.Get(fmt.Sprintf("%s/%d", multiplexerAPI, id))
 					if err != nil {
 						errs[i] = err
@@ -228,9 +259,7 @@ func Test_Multiplexer(t *testing.T) {
 						output[i] = nil
 						return
 					}
-					if err := json.Unmarshal(body, &output[i]); err != nil {
-						errs[i] = err
-					}
+					json.Unmarshal(body, &output[i])
 				}(i, input)
 				time.Sleep(10 * time.Millisecond)
 			}

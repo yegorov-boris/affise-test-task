@@ -66,7 +66,8 @@ func NewPost(
 		}
 
 		go func() {
-			store.Save(id, scraper.Scrap(ctx, links))
+			outputs, errMsg := scraper.Scrap(ctx, links)
+			store.Save(id, outputs, errMsg)
 			state.Finish(id)
 			if hasCallback {
 				callback()

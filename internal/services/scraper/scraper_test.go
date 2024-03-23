@@ -131,7 +131,7 @@ func TestScraper_Scrap(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := New(tt.fields.logger, tt.fields.maxParallelOutPerIn, tt.fields.httpClient)
-			if got := s.Scrap(tt.args.ctx, tt.args.input); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := s.Scrap(tt.args.ctx, tt.args.input); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Scrap() = %v, want %v", got, tt.want)
 			}
 			if tt.fields.httpClient.maxParallel > tt.fields.maxParallelOutPerIn {
