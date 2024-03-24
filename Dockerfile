@@ -5,7 +5,5 @@ RUN go build ./cmd/multiplexer
 
 FROM scratch
 COPY --from=builder /go/src/app/multiplexer /
-COPY .env /
-VOLUME ./store /store
-EXPOSE 8080
+COPY --from=builder /go/src/app/.env /
 ENTRYPOINT ["./multiplexer"]

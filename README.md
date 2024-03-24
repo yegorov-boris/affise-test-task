@@ -1,6 +1,6 @@
-# affise-test-task
-HTTP multiplexer written in Go
+# HTTP multiplexer written in Go
 
+### Task
 приложение представляет собой http-сервер,
 хендлер на вход получает POST-запрос со списком url в json-формате
 сервер запрашивает данные по всем этим url и возвращает результат клиенту в json-формате
@@ -13,3 +13,16 @@ HTTP multiplexer written in Go
 таймаут на запрос одного url - секунда
 обработка запроса может быть отменена клиентом в любой момент, это должно повлечь за собой остановку всех операций связанных с этим запросом
 сервис должен поддерживать 'graceful shutdown'
+
+### Prerequisites
+- linux
+- docker
+
+### Run
+Example:
+
+```
+export STORE_PATH=store
+export HTTP_PORT=8080
+docker build -t multiplexer . && docker run --rm -p 127.0.0.1:$HTTP_PORT:$HTTP_PORT/tcp --volume=./$STORE_PATH:/$STORE_PATH --name=multiplexer-1 multiplexer
+```
