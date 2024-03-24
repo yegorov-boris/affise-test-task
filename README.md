@@ -20,21 +20,23 @@ If at least one outgoing request fails, processing of any other URL stops, and t
 - docker
 
 ### Run
-Set http server port and path to .json output files directory, build and run multiplexer in docker.
+Set http server port and path to .json output files directory. Build and run multiplexer in docker.
 
 Example:
 
 ```
 export STORE_PATH=store
 export HTTP_PORT=8080
-docker build -t multiplexer . && docker run --rm -p 127.0.0.1:$HTTP_PORT:$HTTP_PORT/tcp --volume=./$STORE_PATH:/$STORE_PATH --name=multiplexer-1 multiplexer
+docker build -t multiplexer . && docker run --rm -p $HTTP_PORT:$HTTP_PORT -v ./$STORE_PATH:/$STORE_PATH --name=multiplexer-1 multiplexer
 ```
 
 ### Test
-Build and run tests in docker.
+Set multiplexer and test server http ports. Build and run tests in docker.
 
 Example:
 
 ```
-docker build -f ./Dockerfile.test -t multiplexer . && docker run --rm multiplexer
+export HTTP_PORT=8080
+export TEST_PORT=8081
+docker build -f ./Dockerfile.test --build-arg HTTP_PORT=$HTTP_PORT --build-arg TEST_PORT=$TEST_PORT -t multiplexer . && docker run --rm multiplexer
 ```
