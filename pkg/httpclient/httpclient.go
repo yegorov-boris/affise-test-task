@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,6 +28,11 @@ func (c *Client) Get(ctx context.Context, link string) (models.Output, error) {
 
 	client := &http.Client{
 		Timeout: c.timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
 	}
 
 	res, err := client.Do(req)
