@@ -21,6 +21,7 @@ import (
 func Run(cfg *configs.Config) (func() error, error) {
 	// Logger
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger.Info(fmt.Sprintf("starting with config: %+v", cfg))
 
 	// State
 	state, err := progress.New(cfg.StorePath)
@@ -89,9 +90,11 @@ func Run(cfg *configs.Config) (func() error, error) {
 			log.Fatal(err)
 		}
 	}()
+	logger.Info(fmt.Sprintf("http server listening on port %d", cfg.HTTPPort))
 
 	// GC old files
 	filesCleaner := cleaner.New(cfg.StoreTimeout, cfg.StorePath, logger)
+	logger.Info("files cleaner started")
 
 	return func() error {
 		logger.Info("graceful shutdown started")
