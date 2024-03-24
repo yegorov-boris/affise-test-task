@@ -69,7 +69,7 @@ func TestScraper_Scrap(t *testing.T) {
 			output: models.Output{
 				URL:        "https://example1.com",
 				StatusCode: 200,
-				Body:       []byte("<html><body>some html</body></html>"),
+				Body:       "<html><body>some html</body></html>",
 			},
 			err: nil,
 		},
@@ -77,7 +77,7 @@ func TestScraper_Scrap(t *testing.T) {
 			output: models.Output{
 				URL:        "https://example2.com",
 				StatusCode: 200,
-				Body:       []byte("some text"),
+				Body:       "some text",
 			},
 			err: nil,
 		},
@@ -85,7 +85,7 @@ func TestScraper_Scrap(t *testing.T) {
 			output: models.Output{
 				URL:        "https://example3.com",
 				StatusCode: 200,
-				Body:       []byte(`{"foo": "bar"}`),
+				Body:       `{"foo": "bar"}`,
 			},
 			err: nil,
 		},

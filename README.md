@@ -1,24 +1,38 @@
 # HTTP multiplexer written in Go
 
 ### Task
-приложение представляет собой http-сервер,
-хендлер на вход получает POST-запрос со списком url в json-формате
-сервер запрашивает данные по всем этим url и возвращает результат клиенту в json-формате
-если в процессе обработки хотя бы одного из url получена ошибка, обработка всего списка прекращается и клиенту возвращается текстовая ошибка Ограничения:
-для реализации задачи следует использовать Go 1.18 или выше
-использовать можно только компоненты стандартной библиотеки Go
-сервер не принимает запрос если количество url в в нем больше 20
-сервер не обслуживает больше чем 100 одновременных входящих http-запросов
-для каждого входящего запроса должно быть не больше 4 одновременных исходящих
-таймаут на запрос одного url - секунда
-обработка запроса может быть отменена клиентом в любой момент, это должно повлечь за собой остановку всех операций связанных с этим запросом
-сервис должен поддерживать 'graceful shutdown'
+The application is an HTTP server.
+A POST handler gets a list of JSON-encoded URLs.
+The server gets those links and responds with JSON-encoded results.
+If at least one outgoing request fails, processing of any other URL stops, and the server responds with a text error message.
+#### Limitations:
+- use Go 1.18 or later
+- use Go standard library only
+- rate-limit POST requests, e.g. no more than 100 concurrent
+- limit number of links per POST request, e.g. no more than 20
+- limit outgoing GET requests per incoming POST requests, e.g. no more than 4
+- set timeout for any outgoing GET request, e.g. 1 second
+- clients can cancel processing of their requests
+- implement graceful shutdown
 
 ### Prerequisites
 - linux
 - docker
 
 ### Run
+Set http server port and path to .json output files directory, build and run multiplexer in docker.
+
+Example:
+
+```
+export STORE_PATH=store
+export HTTP_PORT=8080
+docker build -t multiplexer . && docker run --rm -p 127.0.0.1:$HTTP_PORT:$HTTP_PORT/tcp --volume=./$STORE_PATH:/$STORE_PATH --name=multiplexer-1 multiplexer
+```
+
+### Test
+Set http server port and path to .json output files directory, build and run tests in docker.
+
 Example:
 
 ```

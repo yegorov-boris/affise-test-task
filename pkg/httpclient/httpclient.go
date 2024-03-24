@@ -50,6 +50,6 @@ func (c *Client) Get(ctx context.Context, link string) (models.Output, error) {
 	return models.Output{
 		URL:        link,
 		StatusCode: res.StatusCode,
-		Body:       b,
+		Body:       string(b),
 	}, nil
 }

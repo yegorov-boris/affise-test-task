@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -30,19 +29,9 @@ func Test_Multiplexer(t *testing.T) {
 	if err := cfg.Parse(); err != nil {
 		log.Fatal(err)
 	}
-
-	randomBytes := func() []byte {
-		n := rand.Uint32N(255)
-		result := make([]byte, n)
-		for i := 0; i < int(n); i++ {
-			result[i] = uint8(rand.Uint32N(255))
-		}
-
-		return result
-	}
 	bodies := map[string][]byte{
-		"1": randomBytes(),
-		"2": randomBytes(),
+		"1": []byte("<html>foo</html>"),
+		"2": []byte(`{"foo": "bar"}`),
 		"3": {},
 		"4": nil,
 	}
@@ -111,12 +100,12 @@ func Test_Multiplexer(t *testing.T) {
 						{
 							URL:        testLink("1"),
 							StatusCode: http.StatusOK,
-							Body:       bodies["1"],
+							Body:       string(bodies["1"]),
 						},
 						{
 							URL:        testLink("2"),
 							StatusCode: http.StatusOK,
-							Body:       bodies["2"],
+							Body:       string(bodies["2"]),
 						},
 					},
 				},
@@ -142,7 +131,7 @@ func Test_Multiplexer(t *testing.T) {
 						{
 							URL:        testLink("3"),
 							StatusCode: http.StatusOK,
-							Body:       bodies["3"],
+							Body:       string(bodies["3"]),
 						},
 					},
 				},
