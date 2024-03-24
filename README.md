@@ -31,12 +31,10 @@ docker build -t multiplexer . && docker run --rm -p 127.0.0.1:$HTTP_PORT:$HTTP_P
 ```
 
 ### Test
-Set http server port and path to .json output files directory, build and run tests in docker.
+Build and run tests in docker.
 
 Example:
 
 ```
-export STORE_PATH=store
-export HTTP_PORT=8080
-docker build -t multiplexer . && docker run --rm -p 127.0.0.1:$HTTP_PORT:$HTTP_PORT/tcp --volume=./$STORE_PATH:/$STORE_PATH --name=multiplexer-1 multiplexer
+docker build -f ./Dockerfile.test -t multiplexer . && docker run --rm multiplexer
 ```

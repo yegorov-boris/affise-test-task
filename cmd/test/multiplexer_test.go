@@ -234,6 +234,9 @@ func Test_Multiplexer(t *testing.T) {
 				return
 			}
 
+			// wait for http server to start
+			time.Sleep(10 * time.Millisecond)
+
 			n := len(tt.links)
 			output := make([][]models.Output, n)
 			errs := make([]error, n)

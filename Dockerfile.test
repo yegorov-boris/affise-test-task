@@ -1,0 +1,5 @@
+FROM golang:1.22-alpine AS builder
+COPY . /go/src/app
+WORKDIR /go/src/app
+EXPOSE 8080 8081
+ENTRYPOINT ["go", "test", "./..."]
