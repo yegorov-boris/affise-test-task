@@ -30,6 +30,7 @@ func New(
 func (s *Scraper) Scrap(ctx context.Context, input models.Input) ([]models.Output, string) {
 	var wg sync.WaitGroup
 
+	s.logger.Info(fmt.Sprintf("started scrapping %v", input))
 	linksCount := len(input)
 	results := make([]models.Output, linksCount)
 	bucket := make(chan struct{}, s.maxParallelOutPerIn)
@@ -61,10 +62,13 @@ func (s *Scraper) Scrap(ctx context.Context, input models.Input) ([]models.Outpu
 			case <-ctx.Done():
 				switch ctx.Err() {
 				case context.Canceled:
+					s.logger.Info("scrapping canceled by client")
 					errMsgs[i] = "Requests canceled by client."
 				case context.DeadlineExceeded:
+					s.logger.Info(fmt.Sprintf("%s deadline exceeded", link))
 					errMsgs[i] = "Request to %s timeout exceeded."
 				default:
+					s.logger.Info(fmt.Sprintf("request to %s failed", link))
 					errMsgs[i] = fmt.Sprintf("Request to %s failed.", link)
 				}
 			}

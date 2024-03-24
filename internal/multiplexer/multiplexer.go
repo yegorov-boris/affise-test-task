@@ -99,10 +99,7 @@ func Run(cfg *configs.Config) (func() error, error) {
 		if err := srv.Shutdown(context.Background()); err != nil {
 			return fmt.Errorf("failed to shutdown HTTP server: %w", err)
 		}
-
-		for i := 0; i < int(cfg.MaxParallelIn); i++ {
-			bucket <- struct{}{}
-		}
+		logger.Info("http server stopped")
 
 		filesCleaner.Shutdown()
 

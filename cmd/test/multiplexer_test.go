@@ -9,6 +9,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -89,6 +90,7 @@ func Test_Multiplexer(t *testing.T) {
 		rateLimit         uint32
 		httpClientTimeout time.Duration
 		cancel            bool
+		shutdown          bool
 		want              []wantResponse
 	}{
 		{
@@ -186,9 +188,22 @@ func Test_Multiplexer(t *testing.T) {
 				},
 			},
 		},
-		//{
-		//	name: "should shutdown gracefully",
-		//},
+		{
+			name: "should shutdown gracefully",
+			links: [][]string{
+				{
+					testLink("3"),
+				},
+			},
+			rateLimit:         100,
+			httpClientTimeout: 100 * time.Millisecond,
+			shutdown:          true,
+			want: []wantResponse{
+				{
+					postStatusCode: http.StatusAccepted,
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -210,11 +225,16 @@ func Test_Multiplexer(t *testing.T) {
 				return
 			}
 
-			defer func() {
-				if err := shutdown(); err != nil {
-					t.Errorf("graceful shutdown failed: %s", err)
+			var errShutdown error
+
+			shutdownOnce := sync.OnceFunc(func() {
+				errShutdown = shutdown()
+				if errShutdown != nil {
+					t.Errorf("graceful shutdown failed: %s", errShutdown)
+					errShutdown = fmt.Errorf("graceful shutdown failed: %s", errShutdown)
 				}
-			}()
+			})
+			defer shutdownOnce()
 
 			multiplexerAPI, err := url.JoinPath(
 				fmt.Sprintf("http://%s:%d", cfg.MultiplexerHost, mainConfig.HTTPPort),
@@ -258,6 +278,19 @@ func Test_Multiplexer(t *testing.T) {
 					id, err := strconv.ParseUint(string(body), 10, 64)
 					if err != nil {
 						errs[i] = fmt.Errorf("Invalid response body: %s", err)
+						return
+					}
+
+					if tt.shutdown {
+						shutdownOnce()
+						if errShutdown != nil {
+							errs[i] = errShutdown
+							return
+						}
+						time.Sleep(2 * tt.httpClientTimeout)
+						if _, err := os.Open(fmt.Sprintf("../../store/%d.json", id)); err != nil {
+							errs[i] = fmt.Errorf("response bodies were not written to a file: %s", err)
+						}
 						return
 					}
 
