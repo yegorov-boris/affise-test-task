@@ -19,24 +19,38 @@ If at least one outgoing request fails, processing of any other URL stops, and t
 - linux
 - docker
 
+### Init
+- `git clone https://github.com/yegorov-boris/multiplexer.git`
+- `cd multiplexer`
+- `cp .env.dist .env`
+
 ### Run
 Set http server port and path to .json output files directory. Build and run multiplexer in docker.
 
 Example:
 
 ```
-export STORE_PATH=store
-export HTTP_PORT=8080
-docker build -t multiplexer . && docker run --rm -p $HTTP_PORT:$HTTP_PORT -v ./$STORE_PATH:/$STORE_PATH --name=multiplexer-1 multiplexer
+docker build -t multiplexer . && docker run --rm -p 80:8080 -v ./store:/store --name=multiplexer-1 multiplexer
 ```
 
+80 is port on your host multiplexer will work on
+
+8080 is copied from HTTP_PORT in .env
+
+store is copied from STORE_PATH in .env
+
 ### Test
+
+#### Run autotests
+
 Set multiplexer and test server http ports. Build and run tests in docker.
 
 Example:
 
 ```
-export HTTP_PORT=8080
-export TEST_PORT=8081
-docker build -f ./Dockerfile.test --build-arg HTTP_PORT=$HTTP_PORT --build-arg TEST_PORT=$TEST_PORT -t multiplexer . && docker run --rm multiplexer
+docker build -f ./Dockerfile.test -t multiplexer . && docker run --rm -p 8080:8080 -p 8081:8081 multiplexer
 ```
+
+8080 is copied from HTTP_PORT in .env
+
+8081 is copied from TEST_PORT in .env

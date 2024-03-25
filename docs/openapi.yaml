@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: HTTP multiplexer written in Go. Example for an instance running on localhost:8080
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080/api/v1
+paths:
+  /links:
+    post:
+      tags:
+        - links
+      summary: Send a list of links
+      requestBody:
+        description: List of links
+        content:
+          application/json:
+            schema:
+              type: array
+              minLength: 1
+              items:
+                type: string
+                format: uri
+              example: ["https://example.com"]
+        required: true
+      responses:
+        '202':
+          description: Links processing started
+          content:
+            application/text:
+              schema:
+                type: integer
+                minimum: 1
+        '400':
+          description: Invalid input
+        '429':
+          description: Rate limit exceeded
+  /links/{id}:
+    get:
+      tags:
+        - links
+      summary: Get outputs by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Outputs found by id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    url:
+                      type: string
+                      format: uri
+                      example: "https://example.com"
+                    status_code:
+                      type: integer
+                      example: 200
+                    body:
+                      type: string
+                      example: "<html>some text</html>"
+            application/text:
+              schema:
+                type: string
+                example: "Your request is in progress"
+        '400':
+          description: Invalid id
+        '404':
+          description: Outputs not found by id
+    delete:
+      tags:
+        - links
+      summary: Cancel in-progress outputs by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '204':
+          description: Successful operation
+        '400':
+          description: Invalid id
+        '404':
+          description: In-progress outputs not found by id

@@ -1,7 +1,4 @@
 FROM golang:1.22-alpine
-ARG HTTP_PORT
-ARG TEST_PORT
 COPY . /go/src/app
 WORKDIR /go/src/app
-EXPOSE ${HTTP_PORT} ${TEST_PORT}
 ENTRYPOINT ["go", "test", "./..."]
