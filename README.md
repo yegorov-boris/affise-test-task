@@ -54,3 +54,21 @@ docker build -f ./Dockerfile.test -t multiplexer . && docker run --rm -p 8080:80
 8080 is copied from HTTP_PORT in .env
 
 8081 is copied from TEST_PORT in .env
+
+#### Test manually
+
+Build and run multiplexer in docker on default http port (usually 80). Consider `HTTP_BASE_PATH=/api/v1` in your .env file.
+
+Example:
+
+```
+docker build -t multiplexer . && docker run --rm -p 80:8080 -v ./store:/store --name=multiplexer-1 multiplexer
+```
+
+Go to http://127.0.0.1/api/v1/docs
+
+Send POST to create a task
+
+Then GET results by id
+
+Or send DELETE to cancel in-progress task by id

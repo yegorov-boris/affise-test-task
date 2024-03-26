@@ -6,9 +6,12 @@ import (
 	"strings"
 )
 
-func parseID(basePath, path string) (uint64, error) {
+func lastPathPart(basePath, path string) string {
 	prefix, _ := url.JoinPath(basePath, "/")
-	idStr := strings.TrimPrefix(path, prefix)
 
-	return strconv.ParseUint(idStr, 10, 64)
+	return strings.TrimPrefix(path, prefix)
+}
+
+func parseID(basePath, path string) (uint64, error) {
+	return strconv.ParseUint(lastPathPart(basePath, path), 10, 64)
 }

@@ -228,6 +228,7 @@ func Test_Multiplexer(t *testing.T) {
 			multiplexerAPI, err := url.JoinPath(
 				fmt.Sprintf("http://%s:%d", cfg.MultiplexerHost, mainConfig.HTTPPort),
 				mainConfig.HTTPBasePath,
+				"/links",
 			)
 			if err != nil {
 				t.Error(err)

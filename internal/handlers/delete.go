@@ -6,7 +6,7 @@ import (
 	"yegorov-boris/affise-test-task/internal/contracts"
 )
 
-func NewDelete(basePath, storePath string, state contracts.State) contracts.HandlerWithErr {
+func NewDelete(basePath string, state contracts.State) contracts.HandlerWithErr {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		id, err := parseID(basePath, r.URL.Path)
 		if err != nil {

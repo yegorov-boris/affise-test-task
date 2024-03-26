@@ -5,5 +5,6 @@ RUN go build ./cmd/multiplexer
 
 FROM scratch
 COPY --from=builder /go/src/app/multiplexer /
-COPY --from=builder /go/src/app/.env /
+COPY ./.env /
+COPY ./docs/ /docs/
 ENTRYPOINT ["./multiplexer"]

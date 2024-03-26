@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 	"yegorov-boris/affise-test-task/configs"
@@ -37,6 +38,10 @@ func Run(cfg *configs.Config) (func() error, error) {
 
 	// HTTP Server
 	mux := http.NewServeMux()
+	linksPath, err := url.JoinPath(cfg.HTTPBasePath, "/links")
+	if err != nil {
+		return nil, fmt.Errorf("failed to join path: %w", err)
+	}
 
 	handlePost := middleware.NewRateLimiter(
 		bucket,
@@ -51,7 +56,7 @@ func Run(cfg *configs.Config) (func() error, error) {
 		),
 	)
 
-	mux.HandleFunc(cfg.HTTPBasePath, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(linksPath, func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			errMsg := fmt.Sprintf("Sorry, only %s method is supported for this path.", http.MethodPost)
 			http.Error(w, errMsg, http.StatusMethodNotAllowed)
@@ -63,13 +68,13 @@ func Run(cfg *configs.Config) (func() error, error) {
 
 	handleGet := middleware.NewLogger(
 		logger,
-		handlers.NewGet(cfg.HTTPBasePath, cfg.StorePath, state),
+		handlers.NewGet(linksPath, cfg.StorePath, state),
 	)
 	handleDelete := middleware.NewLogger(
 		logger,
-		handlers.NewDelete(cfg.HTTPBasePath, cfg.StorePath, state),
+		handlers.NewDelete(linksPath, state),
 	)
-	mux.HandleFunc(fmt.Sprintf("%s/", cfg.HTTPBasePath), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(fmt.Sprintf("%s/", linksPath), func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			handleGet(w, r)
@@ -81,6 +86,22 @@ func Run(cfg *configs.Config) (func() error, error) {
 			return
 		}
 	})
+
+	docsPath, err := url.JoinPath(cfg.HTTPBasePath, "/docs")
+	if err != nil {
+		return nil, fmt.Errorf("failed to join path: %w", err)
+	}
+	handleDocs := handlers.NewDocs(docsPath)
+	mux.HandleFunc(fmt.Sprintf("%s/", docsPath), func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			errMsg := fmt.Sprintf("Sorry, only %s method is supported for this path.", http.MethodGet)
+			http.Error(w, errMsg, http.StatusMethodNotAllowed)
+			return
+		}
+
+		handleDocs(w, r)
+	})
+
 	srv := http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.HTTPPort),
 		Handler: mux,
