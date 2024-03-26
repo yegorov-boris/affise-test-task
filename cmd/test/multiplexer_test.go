@@ -319,7 +319,7 @@ func Test_Multiplexer(t *testing.T) {
 						output[i] = nil
 						return
 					}
-					json.Unmarshal(body, &output[i])
+					_ = json.Unmarshal(body, &output[i])
 				}(i, input)
 				time.Sleep(10 * time.Millisecond)
 			}

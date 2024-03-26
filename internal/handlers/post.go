@@ -19,7 +19,7 @@ func NewPost(
 	return func(w http.ResponseWriter, r *http.Request) (e error) {
 		var links models.Input
 
-		callback, hasCallback := r.Context().Value("callback").(func())
+		callback, hasCallback := r.Context().Value(contracts.ContextKey("callback")).(func())
 		if hasCallback {
 			defer func() {
 				if e != nil {

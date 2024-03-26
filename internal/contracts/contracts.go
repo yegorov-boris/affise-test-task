@@ -29,4 +29,6 @@ type (
 	Handler = func(w http.ResponseWriter, r *http.Request)
 
 	HandlerWithErr = func(w http.ResponseWriter, r *http.Request) error
+
+	ContextKey string
 )

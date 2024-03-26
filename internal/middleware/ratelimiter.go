@@ -10,7 +10,7 @@ func NewRateLimiter(bucket chan struct{}, inner contracts.Handler) contracts.Han
 	return func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case bucket <- struct{}{}:
-			inner(w, r.Clone(context.WithValue(r.Context(), "callback", func() {
+			inner(w, r.Clone(context.WithValue(r.Context(), contracts.ContextKey("callback"), func() {
 				<-bucket
 			})))
 		default:
