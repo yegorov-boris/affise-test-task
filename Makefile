@@ -1,3 +1,4 @@
 .PHONY: finalcheck
 finalcheck:
-	echo "finalcheck"
+	foo
+	#echo "finalcheck"
