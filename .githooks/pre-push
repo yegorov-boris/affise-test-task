@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if ! command -v make > /dev/null
+then
+    echo "make not found"
+    exit 0
+fi
+
+if ! make finalcheck
+then
+    echo "make finalcheck failed"
+    exit 1
+fi
+
+exit 0
